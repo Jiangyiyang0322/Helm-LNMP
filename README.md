@@ -1,6 +1,6 @@
 # Helm自动化部署LNMP开发环境
 
-本仓库代码使用Helm工具一键自动化部署Nginx、Php、Mysql应用
+本仓库代码使用Helm工具在Kubernetes环境中一键自动化部署Nginx、Php、Mysql应用
 
 ##
 
