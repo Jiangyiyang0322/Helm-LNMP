@@ -1,0 +1,56 @@
+nginx:
+  configkey:
+    nginx.conf
+  replicas: 1
+  image:
+    image: nginx:1.16.0
+    imagePullPolicy: IfNotPresent
+  ports:
+    - name: http
+      containerPort: 80
+
+nginx_service:
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      nodePort: 30080
+
+
+php:
+  configkey: phpinfo.php
+  mysqlkey: mysql.php
+  replicas: 1
+  image:
+    image: jiangyiyang/myphp:2.0
+    imagePullPolicy: IfNotPresent
+  ports:
+    - name: php
+      containerPort: 9000
+
+
+php_service:
+  ports:
+    - protocol: TCP
+      port: 9000
+      targetPort: 9000  
+
+
+mysql:
+  replicas: 1
+  env:
+  - name: MYSQL_ROOT_PASSWORD
+    value: Abcd@123456
+  image:
+    image: mysql:5.7
+    imagePullPolicy: IfNotPresent
+  ports:
+    - name: mysql
+      containerPort: 3306
+
+mysql_service:
+  ports:
+    - protocol: TCP
+      port: 3306
+      targetPort: 3306               

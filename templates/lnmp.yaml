@@ -1,0 +1,171 @@
+apiVersion: v1
+kind: List
+items:
+  - apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: {{ .Release.Name }}-ns
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: {{ .Release.Name }}-nginx-conf
+      namespace: {{ .Release.Name }}-ns
+    data:
+      {{ (.Files.Glob "config/nginx.conf").AsConfig | indent 6 }}
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata: 
+      name: {{ .Release.Name }}-nginx
+      namespace: {{ .Release.Name }}-ns
+    spec:
+      replicas: {{ .Values.nginx.replicas }}
+      selector:
+        matchLabels:
+          {{- include "nginx.labels" . | indent 10 }}
+      template:
+        metadata:
+          labels:
+            {{- include "nginx.labels" . | indent 12 }}
+        spec:
+          containers:
+          - name: {{ .Release.Name }}-nginx
+            {{- with .Values.nginx  }}
+            {{- toYaml .image | nindent 12 }}
+            ports:
+            {{- toYaml .ports | nindent 12 }}
+            {{- end }}
+            volumeMounts:
+            - name: {{ .Release.Name }}-nginx-conf
+              mountPath: /etc/nginx/nginx.conf
+              subPath: {{ .Values.nginx.configkey }}
+          volumes:
+          - name: {{ .Release.Name }}-nginx-conf
+            configMap:
+              name: {{ .Release.Name }}-nginx-conf
+              {{- with .Values.nginx }}
+              items:
+              - key: {{ .configkey }}
+                path: {{ .configkey }}
+              {{- end }}
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: {{ .Release.Name }}-svc-nginx
+      namespace: {{ .Release.Name }}-ns
+    spec:
+      type: NodePort
+      selector:
+        {{- include "nginx.labels" . | indent 8 }}
+      ports:
+      {{- toYaml .Values.nginx_service.ports | nindent 6 }}  
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: {{ .Release.Name }}-php
+      namespace: {{ .Release.Name }}-ns
+    spec:
+      replicas: {{ .Values.php.replicas }}
+      selector:
+        matchLabels:
+          {{- include "php.labels" . | indent 10 }}
+      template:
+        metadata:
+          labels:
+            {{- include "php.labels" . | indent 12 }}
+        spec:
+          containers:
+          - name: {{ .Release.Name }}-php
+            {{- with .Values.php  }}
+            {{- toYaml .image | nindent 12 }}
+            ports:
+            {{- toYaml .ports | nindent 12 }}
+            {{- end }}
+            volumeMounts:
+            - name: {{ .Release.Name }}-php-phpinfo
+              mountPath: /var/www/html/phpinfo.php
+              subPath: {{ .Values.php.configkey }}
+            - name: {{ .Release.Name }}-php-mysql
+              mountPath: /var/www/html/mysql.php
+              subPath: {{ .Values.php.mysqlkey }}
+          volumes:
+          - name: {{ .Release.Name }}-php-phpinfo
+            configMap:
+              name: {{ .Release.Name }}-php-phpinfo
+              {{- with .Values.php }}
+              items:
+              - key: {{ .configkey }}
+                path: {{ .configkey }}
+              {{- end }}
+          - name: {{ .Release.Name }}-php-mysql
+            configMap:
+              name: {{ .Release.Name }}-php-mysql
+              {{- with .Values.php }}
+              items:
+              - key: {{ .mysqlkey }}
+                path: {{ .mysqlkey }}
+              {{- end }}
+
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: {{ .Release.Name }}-svc-php
+      namespace: {{ .Release.Name }}-ns
+    spec:
+      selector:
+        {{- include "php.labels" . | indent 8 }}
+      ports:
+      {{- toYaml .Values.php_service.ports | nindent 6 }} 
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: {{ .Release.Name }}-php-phpinfo
+      namespace: {{ .Release.Name }}-ns
+    data:
+      phpinfo.php: {{ .Files.Get "config/phpinfo.php" | quote | indent 6 }}
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: {{ .Release.Name }}-php-mysql
+      namespace: {{ .Release.Name }}-ns
+    data:
+      mysql.php: {{ .Files.Get "config/mysql.php" | quote | indent 6 }}
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: {{ .Release.Name }}-mysql
+      namespace: {{ .Release.Name }}-ns
+    spec:
+      replicas: {{ .Values.php.replicas }}
+      selector:
+        matchLabels:
+          {{- include "mysql.labels" . | indent 10 }}
+      template:
+        metadata:
+          labels:
+            {{- include "mysql.labels" . | indent 12 }}
+        spec:
+          containers:
+          - name: {{ .Release.Name }}-mysql
+            env:
+            {{- with .Values.mysql  }}
+            {{- toYaml .env | nindent 12 }} 
+            {{- toYaml .image | nindent 12 }}
+            ports:
+            {{- toYaml .ports | nindent 12 }}
+            {{- end }}
+            volumeMounts:
+            - name: {{ .Release.Name }}-mysql-mysqldata
+              mountPath: /var/lib/mysql
+          volumes:
+          - name: {{ .Release.Name }}-mysql-mysqldata
+            emptyDir: {}
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: {{ .Release.Name }}-svc-mysql
+      namespace: {{ .Release.Name }}-ns
+    spec:
+      selector:
+        {{- include "mysql.labels" . | indent 8 }}
+      ports:
+      {{- toYaml .Values.mysql_service.ports | nindent 6 }}             
